@@ -1,0 +1,116 @@
+[
+  {
+    "file_path": "File:opéndk.py",
+    "findings": [
+      {
+        "line": 8,
+        "column": 1,
+        "line_content": "API_KEY = \"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\"  # 🔑 Thay bằng key của bạn",
+        "rules": [
+          {
+            "rule_id": "SEC003",
+            "name": "Generic API key assignment",
+            "category": "hardcoded_secret",
+            "matched_text": "API_KEY = \"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\"",
+            "description": "API key hoặc secret token được gán trực tiếp dưới dạng string."
+          },
+          {
+            "rule_id": "SEC008",
+            "name": "OpenAI API Key",
+            "category": "hardcoded_secret",
+            "matched_text": "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",
+            "description": "OpenAI API key có thể bị hardcode trong source/config."
+          },
+          {
+            "rule_id": "SEC020",
+            "name": "Generic secret in env/config",
+            "category": "hardcoded_secret",
+            "matched_text": "API_KEY = \"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\"",
+            "description": "Biến secret/token/api key xuất hiện trong file env/config/source."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "file_path": "File:test.py",
+    "findings": [
+      {
+        "line": 7,
+        "column": 1,
+        "line_content": "API_KEY = \"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\"  # 🔑 Thay bằng key của bạn",
+        "rules": [
+          {
+            "rule_id": "SEC003",
+            "name": "Generic API key assignment",
+            "category": "hardcoded_secret",
+            "matched_text": "API_KEY = \"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\"",
+            "description": "API key hoặc secret token được gán trực tiếp dưới dạng string."
+          },
+          {
+            "rule_id": "SEC008",
+            "name": "OpenAI API Key",
+            "category": "hardcoded_secret",
+            "matched_text": "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",
+            "description": "OpenAI API key có thể bị hardcode trong source/config."
+          },
+          {
+            "rule_id": "SEC020",
+            "name": "Generic secret in env/config",
+            "category": "hardcoded_secret",
+            "matched_text": "API_KEY = \"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\"",
+            "description": "Biến secret/token/api key xuất hiện trong file env/config/source."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "file_path": "Function:test.py:main",
+    "function_name": "main",
+    "start_line": 126,
+    "end_line": 127,
+    "result": {
+      "ok": true,
+      "label": "VULNERABLE",
+      "label_id": 1,
+      "confidence": 0.7532671093940735,
+      "scores": {
+        "SAFE": 0.24673286080360413,
+        "VULNERABLE": 0.7532671093940735
+      }
+    }
+  },
+  {
+    "file_path": "Function:api.py:main",
+    "function_name": "main",
+    "start_line": 110,
+    "end_line": 111,
+    "result": {
+      "ok": true,
+      "label": "VULNERABLE",
+      "label_id": 1,
+      "confidence": 0.7532671093940735,
+      "scores": {
+        "SAFE": 0.24673286080360413,
+        "VULNERABLE": 0.7532671093940735
+      }
+    }
+  },
+  {
+    "file_path": "Function:test.py:receive_transcription",
+    "function_name": "receive_transcription",
+    "start_line": 82,
+    "end_line": 114,
+    "result": {
+      "ok": true,
+      "label": "VULNERABLE",
+      "label_id": 1,
+      "confidence": 0.5713517665863037,
+      "scores": {
+        "SAFE": 0.4286482036113739,
+        "VULNERABLE": 0.5713517665863037
+      }
+    }
+  }
+]

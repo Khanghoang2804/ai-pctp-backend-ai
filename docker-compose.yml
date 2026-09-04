@@ -1,0 +1,105 @@
+# Stack: Supabase Postgres (sync nodes/relations) + GitNexus HTTP serve + API (analyze + sync).
+#
+# Repos trên DISK dùng volume Docker `repos`, gắn CÙNG đường dẫn `/app/temp_uploads` vào:
+#   - api (chạy `gitnexus analyze` + đọc repo)
+#   - repo-worker (bạn clone/copy repo vào đây)
+#
+# Registry GitNexus (~/.gitnexus) PHẢI chung giữa api và gitnexus, không thì `analyze` ở api
+# ghi index nhưng `gitnexus serve` ở container kia không thấy repo.
+#
+# Gọi analyze với repo_path TRONG CONTAINER API, ví dụ:
+#   POST http://localhost:8000/gitnexus/analyze
+#   {"repo_path": "/app/temp_uploads/myproject", "force": false}
+#
+# Chuẩn bị repo (một lần):
+#   docker compose run --rm repo-worker git clone https://github.com/org/repo.git /app/temp_uploads/repo
+#
+# Tích hợp ai-pctp (Node server/temp_uploads): mount cùng thư mục upload.
+# Đặt AICP_UPLOADS_DIR nếu path khác mặc định ../ai-pctp/server/temp_uploads
+#
+# Tuỳ chọn GitNexus trong api: set GITNEXUS_LOCAL_CLI_PATH (bundle CLI trong image thay vì npx).
+
+services:
+  gitnexus:
+    image: node:22-bookworm-slim
+    working_dir: /workspace
+    command:
+      - /bin/sh
+      - -c
+      - "npm install -g gitnexus@latest && gitnexus serve --host 0.0.0.0 --port 4747"
+    ports:
+      - "4747:4747"
+    volumes:
+      - ${AICP_UPLOADS_DIR:-./server/temp_uploads}:/app/temp_uploads
+      - gitnexus_home:/root/.gitnexus
+    environment:
+      HOME: /root
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: >
+      bash -c "gitnexus serve --host 0.0.0.0 --port 4747 & uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    depends_on:
+      gitnexus:
+        condition: service_started
+    env_file:
+      - .env
+    environment:
+      HOME: /root
+      REPO_UPLOADS_DIR: /app/temp_uploads
+      DATABASE_URL: postgresql://${SUPABASE_DB_USER}:${SUPABASE_PASSWORD}@${SUPABASE_DB_HOST}:${SUPABASE_DB_PORT:-6543}/${SUPABASE_DB_NAME:-postgres}?sslmode=require
+      SUPABASE_DB_USER: ${SUPABASE_DB_USER:?SUPABASE_DB_USER is required}
+      SUPABASE_PASSWORD: ${SUPABASE_PASSWORD:?SUPABASE_PASSWORD is required}
+      SUPABASE_DB_HOST: ${SUPABASE_DB_HOST:?SUPABASE_DB_HOST is required}
+      SUPABASE_DB_PORT: ${SUPABASE_DB_PORT:-6543}
+      SUPABASE_DB_NAME: ${SUPABASE_DB_NAME:-postgres}
+      GITNEXUS_SERVE_BASE_URL: http://127.0.0.1:4747
+      GITNEXUS_USE_NPX: "0"
+      # Scan Layer 2–3 (override path máy dev trong .env)
+      SCAN_MODEL_PATH: /app/app/service/codebert-binary-final_v69_
+      CWE_DICTIONARY_PATH: /app/cwe_dictionary.json
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?OPENAI_API_KEY is required}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://ckey.vn/v1}
+      OPENAI_MODEL: ${OPENAI_MODEL:-qwen3-coder-next}
+      LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-180}
+      SCAN_LAYER3_PROMPT_DUMP: ${SCAN_LAYER3_PROMPT_DUMP:-0}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ${AICP_UPLOADS_DIR:-./server/temp_uploads}:/app/temp_uploads
+      - gitnexus_home:/root/.gitnexus
+      - ./:/app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+  repo-worker:
+    image: alpine/git:latest
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["sleep infinity"]
+    volumes:
+      - ${AICP_UPLOADS_DIR:-./server/temp_uploads}:/app/temp_uploads
+
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    depends_on:
+      api:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      PORT: 5000
+      PYTHON_API_URL: http://api:8000
+    ports:
+      - "5000:5000"
+    volumes:
+      - ${AICP_UPLOADS_DIR:-./server/temp_uploads}:/app/temp_uploads
+
+volumes:
+  gitnexus_home:
